@@ -1,0 +1,203 @@
+// prisma/schema.prisma
+// Maps 1:1 to dang_ky_hoc_phan.sql
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ── 1. DANH MỤC & TÀI KHOẢN ─────────────────────────────────
+
+model VaiTro {
+  id_vai_tro  Int       @id @default(autoincrement())
+  ten_vai_tro String    @unique @db.VarChar(50)
+
+  TaiKhoan    TaiKhoan[]
+
+  @@map("vai_tro")
+}
+
+model TaiKhoan {
+  id_nguoi_dung Int       @id @default(autoincrement())
+  ten_dang_nhap String    @unique @db.VarChar(50)
+  mat_khau      String    @db.VarChar(255)
+  id_vai_tro    Int
+  trang_thai    Boolean   @default(true)
+  ngay_tao      DateTime  @default(now())
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  VaiTro        VaiTro    @relation(fields: [id_vai_tro], references: [id_vai_tro])
+  SinhVien      SinhVien?
+
+  @@map("tai_khoan")
+}
+
+model ChuyenNganh {
+  ma_chuyen_nganh  String     @id @db.VarChar(20)
+  ten_chuyen_nganh String     @db.VarChar(100)
+
+  SinhVien         SinhVien[]
+
+  @@map("chuyen_nganh")
+}
+
+model MonHoc {
+  ma_mon_hoc   String       @id @db.VarChar(20)
+  ten_mon_hoc  String       @db.VarChar(200)
+  so_tin_chi   Int
+  la_mon_chung Int          @default(0) @db.TinyInt
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
+
+  LopHocPhan   LopHocPhan[]
+
+  @@map("mon_hoc")
+}
+
+// ── 2. THỰC THỂ CHÍNH ────────────────────────────────────────
+
+model SinhVien {
+  ma_sinh_vien    String   @id @db.VarChar(20)
+  id_nguoi_dung   Int?     @unique
+  ho_ten          String   @db.VarChar(100)
+  ma_chuyen_nganh String   @db.VarChar(20)
+  so_dien_thoai   String?  @db.VarChar(20)
+  email           String?  @db.VarChar(100)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  TaiKhoan        TaiKhoan?      @relation(fields: [id_nguoi_dung], references: [id_nguoi_dung], onDelete: Cascade)
+  ChuyenNganh     ChuyenNganh    @relation(fields: [ma_chuyen_nganh], references: [ma_chuyen_nganh])
+  DanhSachDangKy  DanhSachDangKy[]
+  LichSuDangKy    LichSuDangKy[]
+
+  @@map("sinh_vien")
+}
+
+model GiangVien {
+  ma_giang_vien String     @id @db.VarChar(20)
+  ho_ten        String     @db.VarChar(100)
+  email         String?    @db.VarChar(100)
+  so_dien_thoai String?    @db.VarChar(20)
+  khoa          String?    @db.VarChar(100)
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+
+  LopHocPhan    LopHocPhan[]
+
+  @@map("giang_vien")
+}
+
+// ── 3. HỌC KỲ & LỚP HỌC PHẦN ───────────────────────────────
+
+model HocKy {
+  id_hoc_ky        Int      @id @default(autoincrement())
+  ten_hoc_ky       String   @db.VarChar(50)
+  nam_hoc          String   @db.VarChar(20)
+  ngay_bat_dau_dk  DateTime @db.Date
+  ngay_ket_thuc_dk DateTime @db.Date
+  dang_kich_hoat   Boolean  @default(true)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  LopHocPhan       LopHocPhan[]
+  CauHinhTinChi    CauHinhTinChi?
+
+  @@map("hoc_ky")
+}
+
+model LopHocPhan {
+  ma_lop_hoc          String   @id @db.VarChar(20)
+  ma_mon_hoc          String   @db.VarChar(20)
+  id_hoc_ky           Int
+  ma_giang_vien       String?  @db.VarChar(20)
+  phong_hoc           String?  @db.VarChar(50)
+  so_luong_toi_da     Int
+  so_luong_con_trong  Int
+  ngay_bat_dau        DateTime? @db.Date
+  ngay_ket_thuc       DateTime? @db.Date
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  MonHoc              MonHoc         @relation(fields: [ma_mon_hoc], references: [ma_mon_hoc])
+  HocKy               HocKy          @relation(fields: [id_hoc_ky], references: [id_hoc_ky])
+  GiangVien           GiangVien?     @relation(fields: [ma_giang_vien], references: [ma_giang_vien])
+  LichHocChiTiet      LichHocChiTiet[]
+  DanhSachDangKy      DanhSachDangKy[]
+  LichSuDangKy        LichSuDangKy[]
+
+  @@map("lop_hoc_phan")
+}
+
+model LichHocChiTiet {
+  id_lich_hoc    Int      @id @default(autoincrement())
+  ma_lop_hoc     String   @db.VarChar(20)
+  thu_trong_tuan Int
+  gio_bat_dau    String   @db.VarChar(8)   // "HH:MM:SS"
+  gio_ket_thuc   String   @db.VarChar(8)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  LopHocPhan     LopHocPhan @relation(fields: [ma_lop_hoc], references: [ma_lop_hoc], onDelete: Cascade)
+
+  @@map("lich_hoc_chi_tiet")
+}
+
+// ── 4. ĐĂNG KÝ HỌC PHẦN ─────────────────────────────────────
+
+model DanhSachDangKy {
+  id_dang_ky      Int            @id @default(autoincrement())
+  ma_sinh_vien    String         @db.VarChar(20)
+  ma_lop_hoc      String         @db.VarChar(20)
+  trang_thai      TrangThaiDangKy @default(cho_duyet)
+  ghi_chu_tu_choi String?        @db.VarChar(255)
+  ngay_dang_ky    DateTime       @default(now())
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+
+  SinhVien        SinhVien    @relation(fields: [ma_sinh_vien], references: [ma_sinh_vien], onDelete: Cascade)
+  LopHocPhan      LopHocPhan  @relation(fields: [ma_lop_hoc], references: [ma_lop_hoc], onDelete: Cascade)
+
+  @@unique([ma_sinh_vien, ma_lop_hoc])
+  @@map("danh_sach_dang_ky")
+}
+
+model LichSuDangKy {
+  id             Int      @id @default(autoincrement())
+  ma_sinh_vien   String?  @db.VarChar(20)
+  ma_lop_hoc     String?  @db.VarChar(20)
+  trang_thai_cu  String?  @db.VarChar(20)
+  trang_thai_moi String?  @db.VarChar(20)
+  thoi_diem      DateTime @default(now())
+  created_at     DateTime @default(now())
+
+  SinhVien       SinhVien?   @relation(fields: [ma_sinh_vien], references: [ma_sinh_vien], onDelete: SetNull)
+  LopHocPhan     LopHocPhan? @relation(fields: [ma_lop_hoc], references: [ma_lop_hoc], onDelete: SetNull)
+
+  @@map("lich_su_dang_ky")
+}
+
+model CauHinhTinChi {
+  id_hoc_ky     Int      @id
+  tin_chi_toi_da Int
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  HocKy         HocKy    @relation(fields: [id_hoc_ky], references: [id_hoc_ky])
+
+  @@map("cau_hinh_tin_chi")
+}
+
+// ── ENUM ─────────────────────────────────────────────────────
+
+enum TrangThaiDangKy {
+  cho_duyet
+  da_duyet
+  tu_choi
+  da_huy
+}

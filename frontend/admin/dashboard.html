@@ -1,0 +1,994 @@
+﻿<!-- // tạo bố cục giao diện quản trị cho dự án đăng ký học phần, gồm menu bên trái, bảng dữ liệu,
+ nút thêm/sửa/xóa và các modal form. File này không kết nối Prisma trực tiếp, mà nó gọi admin.js để xử lý chức năng -->
+
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard - Đăng Ký Học Phần</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../shared/style.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="navbar-brand">🎓 Admin Dashboard</div>
+      <div class="navbar-menu">
+        <span id="userInfo" class="user-info"></span>
+        <button onclick="logout()" class="btn btn-danger">Đăng Xuất</button>
+      </div>
+    </nav>
+
+    <div class="main-container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <ul class="menu">
+          <li class="menu-title">👨‍💼 QUẢN LÝ</li>
+          <li>
+            <a href="#" onclick="showPage('dashboard')" class="menu-link active"
+              >Trang Chủ</a
+            >
+          </li>
+
+          <li class="menu-title">📊 DỮ LIỆU</li>
+          <li>
+            <a href="#" onclick="showPage('students')" class="menu-link"
+              >Sinh Viên</a
+            >
+          </li>
+          <li>
+            <a href="#" onclick="showPage('lecturers')" class="menu-link"
+              >Giảng Viên</a
+            >
+          </li>
+          <li>
+            <a href="#" onclick="showPage('classes')" class="menu-link"
+              >Lớp Học Phần</a
+            >
+          </li>
+          <li>
+            <a href="#" onclick="showPage('chuyenNganh')" class="menu-link"
+              >Chuyên Ngành</a
+            >
+          </li>
+          <li>
+            <a href="#" onclick="showPage('hocKy')" class="menu-link"
+              >Hoc Ky</a
+            >
+          </li>
+          <li>
+            <a href="#" onclick="showPage('monHoc')" class="menu-link"
+              >Mon Hoc</a
+            >
+          </li>
+
+          <li class="menu-title">✍️ ĐĂNG KÝ</li>
+          <li>
+            <a href="#" onclick="showPage('registrations')" class="menu-link"
+              >Duyệt Đăng Ký</a
+            >
+          </li>
+          <li>
+            <a
+              href="#"
+              onclick="showPage('registrationHistory')"
+              class="menu-link"
+              >Lịch Sử Đăng Ký</a
+            >
+          </li>
+        </ul>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="content">
+        <!-- Dashboard -->
+        <section id="dashboard" class="page-section">
+          <h1>📊 Dashboard Admin</h1>
+          <div
+            id="dbStatus"
+            style="margin-bottom: 12px; font-weight: 600; color: #333"
+          >
+            Đang kiểm tra kết nối DB...
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <h3>👥 Sinh Viên</h3>
+              <p id="totalStudents">0</p>
+            </div>
+            <div class="stat-card">
+              <h3>👨‍🏫 Giảng Viên</h3>
+              <p id="totalLecturers">0</p>
+            </div>
+            <div class="stat-card">
+              <h3>📚 Lớp Học</h3>
+              <p id="totalClasses">0</p>
+            </div>
+            <div class="stat-card">
+              <h3>⏳ Chờ Duyệt</h3>
+              <p id="pendingRegistrations">0</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Students Management -->
+        <section id="students" class="page-section" style="display: none">
+          <div class="page-header">
+            <h1>👥 Quản Lý Sinh Viên</h1>
+            <button onclick="showAddStudentForm()" class="btn btn-success">
+              + Thêm Sinh Viên
+            </button>
+          </div>
+          <div class="page-actions">
+            <input
+              type="text"
+              id="searchStudent"
+              placeholder="🔍 Tìm kiếm..."
+              onkeyup="searchStudents()"
+              class="search-input"
+            />
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Mã SV</th>
+                  <th>Họ Tên</th>
+                  <th>Email</th>
+                  <th>Chuyên Ngành</th>
+                  <th>Điện Thoại</th>
+                  <th>Hành Động</th>
+                </tr>
+              </thead>
+              <tbody id="studentsTable">
+                <tr>
+                  <td colspan="6" style="text-align: center">Đang tải...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Lecturers Management -->
+        <section id="lecturers" class="page-section" style="display: none">
+          <div class="page-header">
+            <h1>👨‍🏫 Quản Lý Giảng Viên</h1>
+            <button onclick="showAddLecturerForm()" class="btn btn-success">
+              + Thêm Giảng Viên
+            </button>
+          </div>
+          <div class="page-actions">
+            <input
+              type="text"
+              id="searchLecturer"
+              placeholder="🔍 Tìm kiếm..."
+              onkeyup="searchLecturers()"
+              class="search-input"
+            />
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Mã GV</th>
+                  <th>Họ Tên</th>
+                  <th>Email</th>
+                  <th>Khoa</th>
+                  <th>Điện Thoại</th>
+                  <th>Hành Động</th>
+                </tr>
+              </thead>
+              <tbody id="lecturersTable">
+                <tr>
+                  <td colspan="6" style="text-align: center">Đang tải...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Classes Management -->
+        <section id="classes" class="page-section" style="display: none">
+          <div class="page-header">
+            <h1>📚 Danh Sách Lớp Học Phần</h1>
+            <div>
+              <button
+                onclick="showCauHinhTinChiForm()"
+                class="btn btn-warning me-2"
+              >
+                ⚙️ Cấu Hình Tín Chỉ
+              </button>
+              <button onclick="showAddClassForm()" class="btn btn-success">
+                + Thêm Lớp
+              </button>
+            </div>
+          </div>
+          <div class="page-actions">
+            <select id="classHocKyFilter" onchange="loadClasses()" class="filter-select" style="max-width:260px; margin-right:8px;">
+              <option value="">Tat ca hoc ky</option>
+            </select>
+            <input
+              type="text"
+              id="searchClass"
+              placeholder="🔍 Tìm kiếm..."
+              onkeyup="searchClasses()"
+              class="search-input"
+            />
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Mã Lớp</th>
+                  <th>Môn Học</th>
+                  <th>Giảng Viên</th>
+                  <th>Phòng</th>
+                  <th>Chỗ</th>
+                  <th>Hành Động</th>
+                </tr>
+              </thead>
+              <tbody id="classesTable">
+                <tr>
+                  <td colspan="6" style="text-align: center">Đang tải...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Chuyen Nganh Management -->
+        <section id="chuyenNganh" class="page-section" style="display: none">
+          <div class="page-header">
+            <h1>🏫 Quản Lý Chuyên Ngành</h1>
+            <button onclick="showAddChuyenNganhForm()" class="btn btn-success">
+              + Thêm Chuyên Ngành
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Mã Chuyên Ngành</th>
+                  <th>Tên Chuyên Ngành</th>
+                  <th>Hành Động</th>
+                </tr>
+              </thead>
+              <tbody id="chuyenNganhTable">
+                <tr>
+                  <td colspan="3" style="text-align: center">Đang tải...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+
+        <!-- Hoc Ky Management -->
+        <section id="hocKy" class="page-section" style="display: none">
+          <div class="page-header">
+            <h1>Hoc Ky</h1>
+            <button onclick="showAddHocKyForm()" class="btn btn-success">
+              + Them Hoc Ky
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Ten Hoc Ky</th>
+                  <th>Nam Hoc</th>
+                  <th>Bat Dau DK</th>
+                  <th>Ket Thuc DK</th>
+                  <th>Trang Thai</th>
+                  <th>Hanh Dong</th>
+                </tr>
+              </thead>
+              <tbody id="hocKyTable">
+                <tr>
+                  <td colspan="6" style="text-align: center">Dang tai...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Mon Hoc Management -->
+        <section id="monHoc" class="page-section" style="display: none">
+          <div class="page-header">
+            <h1>Mon Hoc</h1>
+            <button onclick="showAddMonHocForm()" class="btn btn-success">
+              + Them Mon Hoc
+            </button>
+          </div>
+          <div class="page-actions" style="display:flex; gap:10px; align-items:center;">
+            <label for="monHocHocKyFilter" style="margin:0; font-weight:600">Loc theo hoc ky:</label>
+            <select id="monHocHocKyFilter" onchange="handleMonHocHocKyFilter()" class="filter-select" style="max-width:260px;">
+              <option value="">Tat ca hoc ky</option>
+            </select>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Ma Mon</th>
+                  <th>Ten Mon Hoc</th>
+                  <th>So Tin Chi</th>
+                  <th>Hanh Dong</th>
+                </tr>
+              </thead>
+              <tbody id="monHocTable">
+                <tr>
+                  <td colspan="4" style="text-align: center">Dang tai...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Registrations to Approve -->
+        <section id="registrations" class="page-section" style="display: none">
+          <h1>✍️ Duyệt Đăng Ký</h1>
+          <div class="page-actions">
+            <select
+              id="statusFilter"
+              onchange="filterRegistrations()"
+              class="filter-select"
+            >
+              <option value="">-- Tất Cả Trạng Thái --</option>
+              <option value="cho_duyet">⏳ Chờ Duyệt</option>
+              <option value="da_duyet">✅ Đã Duyệt</option>
+              <option value="tu_choi">❌ Từ Chối</option>
+            </select>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Sinh Viên</th>
+                  <th>Lớp Học</th>
+                  <th>Ngày Đăng Ký</th>
+                  <th>Trạng Thái</th>
+                  <th>Hành Động</th>
+                </tr>
+              </thead>
+              <tbody id="registrationsTable">
+                <tr>
+                  <td colspan="5" style="text-align: center">Đang tải...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Registration History -->
+        <section
+          id="registrationHistory"
+          class="page-section"
+          style="display: none"
+        >
+          <h1>📜 Lịch Sử Đăng Ký</h1>
+          <div class="page-actions">
+            <input
+              type="text"
+              id="searchHistory"
+              placeholder="🔍 Tìm theo mã SV, tên SV, mã lớp, trạng thái..."
+              onkeyup="loadRegistrationHistory()"
+              class="search-input"
+            />
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Sinh Viên</th>
+                  <th>Lớp Học</th>
+                  <th>Trạng Thái Cũ</th>
+                  <th>Trạng Thái Mới</th>
+                  <th>Thời Điểm</th>
+                </tr>
+              </thead>
+              <tbody id="historyTable">
+                <tr>
+                  <td colspan="5" style="text-align: center">Đang tải...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="custom-modal" style="display: none">
+      <div class="custom-modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <div id="modalBody"></div>
+      </div>
+    </div>
+
+    <!-- Modal Thêm Sinh Viên -->
+    <div
+      class="modal fade"
+      id="modalThemSinhVien"
+      tabindex="-1"
+      aria-labelledby="modalThemSinhVienLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalThemSinhVienLabel">
+              Thêm Sinh Viên Mới
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form id="formThemSinhVien">
+              <div class="mb-3">
+                <label for="ma_sinh_vien" class="form-label"
+                  >Mã Sinh Viên <span class="text-danger">*</span></label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="ma_sinh_vien"
+                  name="ma_sinh_vien"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="ho_ten" class="form-label"
+                  >Họ Tên <span class="text-danger">*</span></label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="ho_ten"
+                  name="ho_ten"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="ma_chuyen_nganh" class="form-label"
+                  >Chuyên Ngành <span class="text-danger">*</span></label
+                >
+                <select
+                  class="form-control"
+                  id="ma_chuyen_nganh"
+                  name="ma_chuyen_nganh"
+                  required
+                >
+                  <option value="">-- Chọn chuyên ngành --</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input
+                  type="email"
+                  class="form-control"
+                  id="email"
+                  name="email"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="so_dien_thoai" class="form-label"
+                  >Số Điện Thoại</label
+                >
+                <input
+                  type="tel"
+                  class="form-control"
+                  id="so_dien_thoai"
+                  name="so_dien_thoai"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="ten_dang_nhap" class="form-label"
+                  >Tên Đăng Nhập</label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="ten_dang_nhap"
+                  name="ten_dang_nhap"
+                  placeholder="Mặc định = mã sinh viên"
+                />
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick="submitThemSinhVien()"
+            >
+              Tạo Sinh Viên
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Thêm Giảng Viên -->
+    <div
+      class="modal fade"
+      id="modalThemGiangVien"
+      tabindex="-1"
+      aria-labelledby="modalThemGiangVienLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalThemGiangVienLabel">
+              Thêm Giảng Viên Mới
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form id="formThemGiangVien">
+              <div class="mb-3">
+                <label for="ma_giang_vien" class="form-label"
+                  >Mã Giảng Viên <span class="text-danger">*</span></label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="ma_giang_vien"
+                  name="ma_giang_vien"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="ho_ten_gv" class="form-label"
+                  >Họ Tên <span class="text-danger">*</span></label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="ho_ten_gv"
+                  name="ho_ten"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="email_gv" class="form-label">Email</label>
+                <input
+                  type="email"
+                  class="form-control"
+                  id="email_gv"
+                  name="email"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="so_dien_thoai_gv" class="form-label"
+                  >Số Điện Thoại</label
+                >
+                <input
+                  type="tel"
+                  class="form-control"
+                  id="so_dien_thoai_gv"
+                  name="so_dien_thoai"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="khoa" class="form-label">Khoa</label>
+                <input type="text" class="form-control" id="khoa" name="khoa" />
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick="submitThemGiangVien()"
+            >
+              Tạo Giảng Viên
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Thêm Lớp Học Phần -->
+    <div
+      class="modal fade"
+      id="modalThemLopHocPhan"
+      tabindex="-1"
+      aria-labelledby="modalThemLopHocPhanLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalThemLopHocPhanLabel">
+              Thêm Lớp Học Phần Mới
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form id="formThemLopHocPhan">
+              <div class="mb-3">
+                <label for="ma_lop_hoc" class="form-label"
+                  >Mã Lớp Học <span class="text-danger">*</span></label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="ma_lop_hoc"
+                  name="ma_lop_hoc"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="ma_mon_hoc" class="form-label"
+                  >Môn Học <span class="text-danger">*</span></label
+                >
+                <select
+                  class="form-control"
+                  id="ma_mon_hoc"
+                  name="ma_mon_hoc"
+                  required
+                >
+                  <option value="">-- Chọn môn học --</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="id_hoc_ky" class="form-label"
+                  >Học Kỳ <span class="text-danger">*</span></label
+                >
+                <select
+                  class="form-control"
+                  id="id_hoc_ky"
+                  name="id_hoc_ky"
+                  required
+                >
+                  <option value="">-- Chọn học kỳ --</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="ma_giang_vien_lop" class="form-label"
+                  >Giảng Viên</label
+                >
+                <select
+                  class="form-control"
+                  id="ma_giang_vien_lop"
+                  name="ma_giang_vien"
+                >
+                  <option value="">-- Chọn giảng viên --</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="phong_hoc" class="form-label">Phòng Học</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="phong_hoc"
+                  name="phong_hoc"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="so_luong_toi_da" class="form-label"
+                  >Số Lượng Tối Đa <span class="text-danger">*</span></label
+                >
+                <input
+                  type="number"
+                  class="form-control"
+                  id="so_luong_toi_da"
+                  name="so_luong_toi_da"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="ngay_bat_dau" class="form-label"
+                  >Ngày Bắt Đầu</label
+                >
+                <input
+                  type="date"
+                  class="form-control"
+                  id="ngay_bat_dau"
+                  name="ngay_bat_dau"
+                />
+              </div>
+              <div class="mb-3">
+                <label for="ngay_ket_thuc" class="form-label"
+                  >Ngày Kết Thúc</label
+                >
+                <input
+                  type="date"
+                  class="form-control"
+                  id="ngay_ket_thuc"
+                  name="ngay_ket_thuc"
+                />
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick="submitThemLopHocPhan()"
+            >
+              Tạo Lớp Học Phần
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Thêm/Sửa Chuyên Ngành -->
+    <div
+      class="modal fade"
+      id="chuyenNganhModal"
+      tabindex="-1"
+      aria-labelledby="chuyenNganhModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="chuyenNganhModalLabel">
+              Thêm Chuyên Ngành
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form id="chuyenNganhForm">
+              <input type="hidden" id="chuyenNganhId" name="ma_chuyen_nganh" />
+              <div class="mb-3">
+                <label for="maChuyenNganh" class="form-label"
+                  >Mã Chuyên Ngành <span class="text-danger">*</span></label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="maChuyenNganh"
+                  name="ma_chuyen_nganh"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label for="tenChuyenNganh" class="form-label"
+                  >Tên Chuyên Ngành <span class="text-danger">*</span></label
+                >
+                <input
+                  type="text"
+                  class="form-control"
+                  id="tenChuyenNganh"
+                  name="ten_chuyen_nganh"
+                  required
+                />
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick="saveChuyenNganh()"
+            >
+              Lưu
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Cấu Hình Tín Chỉ -->
+    <div
+      class="modal fade"
+      id="cauHinhTinChiModal"
+      tabindex="-1"
+      aria-labelledby="cauHinhTinChiModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="cauHinhTinChiModalLabel">
+              Cấu Hình Tín Chỉ Học Kỳ
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form id="cauHinhTinChiForm">
+              <div class="mb-3">
+                <label for="idHocKyTinChi" class="form-label"
+                  >Học Kỳ <span class="text-danger">*</span></label
+                >
+                <select
+                  class="form-control"
+                  id="idHocKyTinChi"
+                  name="id_hoc_ky"
+                  required
+                >
+                  <option value="">-- Chọn học kỳ --</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="soTinChiToiDa" class="form-label"
+                  >Số Tín Chỉ Tối Đa <span class="text-danger">*</span></label
+                >
+                <input
+                  type="number"
+                  class="form-control"
+                  id="soTinChiToiDa"
+                  name="so_tin_chi_toi_da"
+                  required
+                />
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick="saveCauHinhTinChi()"
+            >
+              Lưu
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Modal Them/Sua Hoc Ky -->
+    <div
+      class="modal fade"
+      id="hocKyModal"
+      tabindex="-1"
+      aria-labelledby="hocKyModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="hocKyModalLabel">Them Hoc Ky</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form id="hocKyForm">
+              <input type="hidden" id="hocKyId" />
+              <div class="mb-3">
+                <label for="tenHocKy" class="form-label">Ten Hoc Ky</label>
+                <input type="text" class="form-control" id="tenHocKy" required />
+              </div>
+              <div class="mb-3">
+                <label for="namHoc" class="form-label">Nam Hoc</label>
+                <input type="text" class="form-control" id="namHoc" required />
+              </div>
+              <div class="mb-3">
+                <label for="ngayBatDauDK" class="form-label">Ngay Bat Dau Dang Ky</label>
+                <input type="date" class="form-control" id="ngayBatDauDK" required />
+              </div>
+              <div class="mb-3">
+                <label for="ngayKetThucDK" class="form-label">Ngay Ket Thuc Dang Ky</label>
+                <input type="date" class="form-control" id="ngayKetThucDK" required />
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Huy</button>
+            <button type="button" class="btn btn-primary" onclick="saveHocKy()">Luu</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Them/Sua Mon Hoc -->
+    <div
+      class="modal fade"
+      id="monHocModal"
+      tabindex="-1"
+      aria-labelledby="monHocModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="monHocModalLabel">Them Mon Hoc</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <form id="monHocForm">
+              <input type="hidden" id="monHocId" />
+              <div class="mb-3">
+                <label for="maMonHoc" class="form-label">Ma Mon Hoc</label>
+                <input type="text" class="form-control" id="maMonHoc" required />
+              </div>
+              <div class="mb-3">
+                <label for="tenMonHoc" class="form-label">Ten Mon Hoc</label>
+                <input type="text" class="form-control" id="tenMonHoc" required />
+              </div>
+              <div class="mb-3">
+                <label for="soTinChi" class="form-label">So Tin Chi</label>
+                <input type="number" min="1" class="form-control" id="soTinChi" required />
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Huy</button>
+            <button type="button" class="btn btn-primary" onclick="saveMonHoc()">Luu</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../shared/auth.js"></script>
+    <script src="admin.js"></script>
+  </body>
+</html>
+

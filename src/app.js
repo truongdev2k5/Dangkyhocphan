@@ -33,8 +33,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // ── Serve frontend static files ───────────────────────────────
-const frontendPath = path.join(__dirname, "..", "..", "frontend");
-app.use(express.static(frontendPath));
+const frontendPath = path.join(__dirname, "..", "frontend");app.use(express.static(frontendPath));
 app.get("/", (req, res) => res.sendFile(path.join(frontendPath, "login.html")));
 
 // ── Health check ─────────────────────────────────────────────

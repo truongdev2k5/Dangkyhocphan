@@ -1,6 +1,6 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-
+//dùng để kiểm tra kết nối Prisma với database và đếm dữ liệu trong các bảng.
 async function test() {
   try {
     const svCount = await prisma.sinhVien.count();

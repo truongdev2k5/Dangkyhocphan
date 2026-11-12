@@ -1,0 +1,12 @@
+{
+  "name": "dang_ky_hoc_phan_frontend",
+  "version": "1.0.0",
+  "description": "Frontend for dang ky hoc phan",
+  "main": "login.html",
+  "scripts": {
+    "start": "npx live-server --port=8080 --host=localhost"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}

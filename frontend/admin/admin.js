@@ -39,18 +39,19 @@ function showPage(pageName) {
   const page = document.getElementById(pageName);
   if (page) {
     page.style.display = "block";
-    if (window.event && window.event.target) {
-      window.event.target.classList.add("active");
-    } else {
-      const activeLink = document.querySelector(`[onclick*="'${pageName}'"]`);
-      if (activeLink) activeLink.classList.add("active");
-    }
-
+    document.querySelectorAll(".menu-link").forEach(link => {
+      const selected = link.getAttribute("onclick") === "showPage('" + pageName + "')";
+      link.classList.toggle("active", selected);
+      if (selected) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    });
+    document.querySelector(".sidebar").classList.remove("expanded");
+    document.getElementById("navToggle").setAttribute("aria-expanded", "false");
     if (pageName === "dashboard") loadAdminDashboard();
     else if (pageName === "students") loadStudents();
     else if (pageName === "lecturers") loadLecturers();
     else if (pageName === "classes") loadClasses();
-    else if (pageName === "registrations") loadRegistrations();
+    else if (pageName === "registrations") filterRegistrations();
     else if (pageName === "registrationHistory") loadRegistrationHistory();
     else if (pageName === "hocKy") loadHocKy();
     else if (pageName === "monHoc") { loadHocKy(); loadMonHoc(); }
@@ -100,7 +101,7 @@ async function loadAdminDashboard() {
       statsRes.data?.choDuyetCount || 0;
 
     // Ẩn loading, hiển thị OK
-    document.getElementById("dbStatus").textContent = "✅ Đã tải dữ liệu";
+    document.getElementById("dbStatus").textContent = "";
     document.getElementById("dbStatus").style.color = "#0a7";
   } catch (error) {
     console.error("Error loading dashboard:", error);
@@ -139,11 +140,11 @@ async function loadStudents() {
       <tr>
         <td><strong>${sv.ma_sinh_vien}</strong></td>
         <td>${sv.ho_ten}</td>
-        <td>${sv.email || "N/A"}</td>
-        <td>${sv.chuyen_nganh?.ten || "N/A"}</td>
-        <td>${sv.so_dien_thoai || "N/A"}</td>
+        <td>${sv.email || "—"}</td>
+        <td>${sv.chuyen_nganh?.ten || "—"}</td>
+        <td>${sv.so_dien_thoai || "—"}</td>
         <td>
-          <button onclick="resetPassword('${sv.tai_khoan?.id_nguoi_dung || ""}')" class="btn btn-sm btn-warning" ${sv.tai_khoan?.id_nguoi_dung ? "" : "disabled"}>Reset MK</button>
+          <button onclick="resetPassword('${sv.tai_khoan?.id_nguoi_dung || ""}')" class="btn btn-sm btn-warning" ${sv.tai_khoan?.id_nguoi_dung ? "" : "disabled"}>Đặt lại mật khẩu</button>
           <button onclick="deleteStudent('${sv.ma_sinh_vien}')" class="btn btn-sm btn-danger">Xóa</button>
         </td>
       </tr>
@@ -182,9 +183,9 @@ async function loadLecturers() {
                 <tr>
                     <td><strong>${gv.ma_giang_vien}</strong></td>
                     <td>${gv.ho_ten}</td>
-                    <td>${gv.email || "N/A"}</td>
-                    <td>${gv.khoa || "N/A"}</td>
-                    <td>${gv.so_dien_thoai || "N/A"}</td>
+                    <td>${gv.email || "—"}</td>
+                    <td>${gv.khoa || "—"}</td>
+                    <td>${gv.so_dien_thoai || "—"}</td>
                     <td>
                         <button onclick="deleteLecturer('${gv.ma_giang_vien}')" class="btn btn-sm btn-danger">Xóa</button>
                     </td>
@@ -230,7 +231,7 @@ async function loadClasses() {
 
     if (!data?.data?.length) {
       tbody.innerHTML =
-        '<tr><td colspan="6" style="text-align:center;">Khong co lop nao</td></tr>';
+        '<tr><td colspan="6" style="text-align:center;">Chưa có lớp học phần</td></tr>';
       return;
     }
 
@@ -239,13 +240,13 @@ async function loadClasses() {
         (lop) => `
         <tr>
             <td><strong>${lop.ma_lop_hoc}</strong></td>
-            <td>${lop.mon_hoc?.ten || "N/A"}</td>
-            <td>${lop.giang_vien?.ten || "N/A"}</td>
-            <td>${lop.phong_hoc || "N/A"}</td>
+            <td>${lop.mon_hoc?.ten || "—"}</td>
+            <td>${lop.giang_vien?.ten || "—"}</td>
+            <td>${lop.phong_hoc || "—"}</td>
             <td>${lop.so_luong_con_trong}/${lop.so_luong_toi_da}</td>
             <td>
-                <button onclick="viewClassDetail('${lop.ma_lop_hoc}')" class="btn btn-sm btn-info">Chi Tiet</button>
-                <button onclick="deleteClass('${lop.ma_lop_hoc}')" class="btn btn-sm btn-danger">Xoa</button>
+                <button onclick="viewClassDetail('${lop.ma_lop_hoc}')" class="btn btn-sm btn-info">Chi tiết</button>
+                <button onclick="deleteClass('${lop.ma_lop_hoc}')" class="btn btn-sm btn-danger">Xóa</button>
             </td>
         </tr>
       `,
@@ -264,42 +265,6 @@ function searchClasses() {
     const text = row.textContent.toLowerCase();
     row.style.display = text.includes(term) ? "" : "none";
   });
-}
-
-async function loadRegistrations() {
-  try {
-    const data = await apiCall("GET", "/dang-ky?limit=1000");
-    const tbody = document.getElementById("registrationsTable");
-    tbody.innerHTML = "";
-
-    if (!data.data?.length) {
-      tbody.innerHTML =
-        '<tr><td colspan="5" style="text-align:center;">Không có đăng ký</td></tr>';
-      return;
-    }
-
-    data.data.forEach((reg) => {
-      let actions = "";
-      if (reg.trang_thai === "cho_duyet") {
-        actions = `
-                    <button onclick="approveRegistration(${reg.id_dang_ky})" class="btn btn-sm btn-success">✅ Duyệt</button>
-                    <button onclick="rejectRegistration(${reg.id_dang_ky})" class="btn btn-sm btn-danger">❌ Từ Chối</button>
-                `;
-      }
-
-      tbody.innerHTML += `
-                <tr>
-                    <td>${reg.sinh_vien?.ho_ten || "N/A"}</td>
-                    <td>${reg.lop_hoc_phan?.ma_lop_hoc || "N/A"}</td>
-                    <td>${new Date(reg.ngay_dang_ky).toLocaleDateString("vi-VN")}</td>
-                    <td><span class="status status-${reg.trang_thai}">${getStatusLabel(reg.trang_thai)}</span></td>
-                    <td>${actions}</td>
-                </tr>
-            `;
-    });
-  } catch (error) {
-    console.error("Error loading registrations:", error);
-  }
 }
 
 async function filterRegistrations() {
@@ -321,15 +286,15 @@ async function filterRegistrations() {
       let actions = "";
       if (reg.trang_thai === "cho_duyet") {
         actions = `
-                    <button onclick="approveRegistration(${reg.id_dang_ky})" class="btn btn-sm btn-success">✅ Duyệt</button>
-                    <button onclick="rejectRegistration(${reg.id_dang_ky})" class="btn btn-sm btn-danger">❌ Từ Chối</button>
+                    <button onclick="approveRegistration(${reg.id_dang_ky})" class="btn btn-sm btn-success">Duyệt</button>
+                    <button onclick="rejectRegistration(${reg.id_dang_ky})" class="btn btn-sm btn-danger">Từ chối</button>
                 `;
       }
 
       tbody.innerHTML += `
                 <tr>
-                    <td>${reg.sinh_vien?.ho_ten || "N/A"}</td>
-                    <td>${reg.lop_hoc_phan?.ma_lop_hoc || "N/A"}</td>
+                    <td>${reg.sinh_vien?.ho_ten || "—"}</td>
+                    <td>${reg.lop_hoc_phan?.ma_lop_hoc || "—"}</td>
                     <td>${new Date(reg.ngay_dang_ky).toLocaleDateString("vi-VN")}</td>
                     <td><span class="status status-${reg.trang_thai}">${getStatusLabel(reg.trang_thai)}</span></td>
                     <td>${actions}</td>
@@ -361,10 +326,10 @@ async function loadRegistrationHistory() {
     data.data.forEach((hist) => {
       tbody.innerHTML += `
                 <tr>
-                    <td>${hist.SinhVien?.ho_ten || hist.sinh_vien?.ho_ten || "N/A"}</td>
-                    <td>${hist.LopHocPhan?.ma_lop_hoc || hist.lop_hoc_phan?.ma_lop_hoc || "N/A"}</td>
-                    <td>${hist.trang_thai_cu || "N/A"}</td>
-                    <td>${hist.trang_thai_moi || "N/A"}</td>
+                    <td>${hist.SinhVien?.ho_ten || hist.sinh_vien?.ho_ten || "—"}</td>
+                    <td>${hist.LopHocPhan?.ma_lop_hoc || hist.lop_hoc_phan?.ma_lop_hoc || "—"}</td>
+                    <td>${getStatusLabel(hist.trang_thai_cu) || "—"}</td>
+                    <td>${getStatusLabel(hist.trang_thai_moi) || "—"}</td>
                     <td>${new Date(hist.thoi_diem).toLocaleString("vi-VN")}</td>
                 </tr>
             `;
@@ -383,14 +348,14 @@ async function loadHocKy() {
 
     if (!data.data?.length) {
       tbody.innerHTML =
-        '<tr><td colspan="6" style="text-align:center;">Khong co hoc ky</td></tr>';
-      if (hocKyFilter) hocKyFilter.innerHTML = '<option value="">Tat ca hoc ky</option>';
+        '<tr><td colspan="6" style="text-align:center;">Chưa có học kỳ</td></tr>';
+      if (hocKyFilter) hocKyFilter.innerHTML = '<option value="">Tất cả học kỳ</option>';
       return;
     }
 
     if (hocKyFilter) {
       const currentValue = hocKyFilter.value;
-      hocKyFilter.innerHTML = '<option value="">Tat ca hoc ky</option>';
+      hocKyFilter.innerHTML = '<option value="">Tất cả học kỳ</option>';
       data.data.forEach((hk) => {
         hocKyFilter.innerHTML += `<option value="${hk.id_hoc_ky}">${hk.ten_hoc_ky} (${hk.nam_hoc})</option>`;
       });
@@ -404,11 +369,11 @@ async function loadHocKy() {
                     <td>${hk.nam_hoc}</td>
                     <td>${new Date(hk.ngay_bat_dau_dk).toLocaleDateString("vi-VN")}</td>
                     <td>${new Date(hk.ngay_ket_thuc_dk).toLocaleDateString("vi-VN")}</td>
-                    <td><span class="status ${hk.dang_kich_hoat ? "status-active" : "status-inactive"}">${hk.dang_kich_hoat ? "Kich hoat" : "Khong kich hoat"}</span></td>
+                    <td><span class="status ${hk.dang_kich_hoat ? "status-active" : "status-inactive"}">${hk.dang_kich_hoat ? "Kích hoạt" : "Chưa kích hoạt"}</span></td>
                     <td>
-                        <button onclick="editHocKy(${hk.id_hoc_ky})" class="btn btn-sm btn-warning">Sua</button>
-                        <button onclick="activateHocKy(${hk.id_hoc_ky})" class="btn btn-sm btn-success">${hk.dang_kich_hoat ? "Tat" : "Bat"}</button>
-                        <button onclick="deleteHocKy(${hk.id_hoc_ky})" class="btn btn-sm btn-danger">Xoa</button>
+                        <button onclick="editHocKy(${hk.id_hoc_ky})" class="btn btn-sm btn-warning">Sửa</button>
+                        <button onclick="activateHocKy(${hk.id_hoc_ky})" class="btn btn-sm btn-success">${hk.dang_kich_hoat ? "Tắt" : "Bật"}</button>
+                        <button onclick="deleteHocKy(${hk.id_hoc_ky})" class="btn btn-sm btn-danger">Xóa</button>
                     </td>
                 </tr>
             `;
@@ -444,7 +409,7 @@ async function loadMonHoc() {
 
       if (!dataByHocKy.length) {
         tbody.innerHTML =
-          '<tr><td colspan="4" style="text-align:center;">Hoc ky nay chua co mon hoc gan voi lop hoc phan</td></tr>';
+          '<tr><td colspan="4" style="text-align:center;">Học kỳ này chưa có môn học gắn với lớp học phần</td></tr>';
         return;
       }
 
@@ -455,8 +420,8 @@ async function loadMonHoc() {
                     <td>${mh.ten_mon_hoc}</td>
                     <td>${mh.so_tin_chi}</td>
                     <td>
-                        <button onclick="editMonHoc('${mh.ma_mon_hoc}')" class="btn btn-sm btn-warning">Sua</button>
-                        <button onclick="deleteMonHoc('${mh.ma_mon_hoc}')" class="btn btn-sm btn-danger">Xoa</button>
+                        <button onclick="editMonHoc('${mh.ma_mon_hoc}')" class="btn btn-sm btn-warning">Sửa</button>
+                        <button onclick="deleteMonHoc('${mh.ma_mon_hoc}')" class="btn btn-sm btn-danger">Xóa</button>
                     </td>
                 </tr>
             `;
@@ -467,7 +432,7 @@ async function loadMonHoc() {
     const data = await apiCall("GET", "/mon-hoc?limit=1000");
     if (!data.data?.length) {
       tbody.innerHTML =
-        '<tr><td colspan="4" style="text-align:center;">Khong co mon hoc</td></tr>';
+        '<tr><td colspan="4" style="text-align:center;">Chưa có môn học</td></tr>';
       return;
     }
 
@@ -478,8 +443,8 @@ async function loadMonHoc() {
                     <td>${mh.ten_mon_hoc}</td>
                     <td>${mh.so_tin_chi}</td>
                     <td>
-                        <button onclick="editMonHoc('${mh.ma_mon_hoc}')" class="btn btn-sm btn-warning">Sua</button>
-                        <button onclick="deleteMonHoc('${mh.ma_mon_hoc}')" class="btn btn-sm btn-danger">Xoa</button>
+                        <button onclick="editMonHoc('${mh.ma_mon_hoc}')" class="btn btn-sm btn-warning">Sửa</button>
+                        <button onclick="deleteMonHoc('${mh.ma_mon_hoc}')" class="btn btn-sm btn-danger">Xóa</button>
                     </td>
                 </tr>
             `;
@@ -497,19 +462,19 @@ async function approveRegistration(idDK) {
     const data = await apiCall("PATCH", `/dang-ky/${idDK}/duyet`);
 
     if (data.success) {
-      alert("✅ Duyệt thành công!");
-      loadRegistrations();
+      notifyAdmin("Duyệt thành công!");
+      filterRegistrations();
       loadAdminDashboard();
     } else {
-      alert("❌ Lỗi: " + data.message);
+      notifyAdmin("❌ Lỗi: " + data.message);
     }
   } catch (error) {
-    alert("❌ Lỗi: " + error.message);
+    notifyAdmin("❌ Lỗi: " + error.message);
   }
 }
 
 async function rejectRegistration(idDK) {
-  const reason = prompt("Nhập lý do từ chối:");
+  const reason = await askAdmin("Từ chối yêu cầu đăng ký", true);
   if (reason === null) return;
 
   try {
@@ -518,71 +483,71 @@ async function rejectRegistration(idDK) {
     });
 
     if (data.success) {
-      alert("✅ Từ chối thành công!");
-      loadRegistrations();
+      notifyAdmin("✅ Từ chối thành công!");
+      filterRegistrations();
       loadAdminDashboard();
     } else {
-      alert("❌ Lỗi: " + data.message);
+      notifyAdmin("❌ Lỗi: " + data.message);
     }
   } catch (error) {
-    alert("❌ Lỗi: " + error.message);
+    notifyAdmin("❌ Lỗi: " + error.message);
   }
 }
 
 async function deleteStudent(maSV) {
-  if (!confirm("Bạn có chắc chắn muốn xóa?")) return;
+  if (!await askAdmin("Bạn có chắc chắn muốn xóa?")) return;
 
   try {
     const data = await apiCall("DELETE", `/sinh-vien/${maSV}`);
 
     if (data.success) {
-      alert("✅ Xóa thành công!");
+      notifyAdmin("✅ Xóa thành công!");
       loadStudents();
     } else {
-      alert("❌ Lỗi: " + data.message);
+      notifyAdmin("❌ Lỗi: " + data.message);
     }
   } catch (error) {
-    alert("❌ Lỗi: " + error.message);
+    notifyAdmin("❌ Lỗi: " + error.message);
   }
 }
 
 async function deleteLecturer(maGV) {
-  if (!confirm("Bạn có chắc chắn muốn xóa?")) return;
+  if (!await askAdmin("Bạn có chắc chắn muốn xóa?")) return;
 
   try {
     const data = await apiCall("DELETE", `/giang-vien/${maGV}`);
 
     if (data.success) {
-      alert("✅ Xóa thành công!");
+      notifyAdmin("✅ Xóa thành công!");
       loadLecturers();
     } else {
-      alert("❌ Lỗi: " + data.message);
+      notifyAdmin("❌ Lỗi: " + data.message);
     }
   } catch (error) {
-    alert("❌ Lỗi: " + error.message);
+    notifyAdmin("❌ Lỗi: " + error.message);
   }
 }
 
 async function deleteClass(maLop) {
-  if (!confirm("Bạn có chắc chắn muốn xóa?")) return;
+  if (!await askAdmin("Bạn có chắc chắn muốn xóa?")) return;
 
   try {
     const data = await apiCall("DELETE", `/lop-hoc-phan/${maLop}`);
 
     if (data.success) {
-      alert("✅ Xóa thành công!");
+      notifyAdmin("✅ Xóa thành công!");
       loadClasses();
     } else {
-      alert("❌ Lỗi: " + data.message);
+      notifyAdmin("❌ Lỗi: " + data.message);
     }
   } catch (error) {
-    alert("❌ Lỗi: " + error.message);
+    notifyAdmin("❌ Lỗi: " + error.message);
   }
 }
 
 async function viewClassDetail(maLop) {
   if (!maLop) {
-    alert("❌ Lỗi: ID lớp không xác định");
+    notifyAdmin("❌ Lỗi: ID lớp không xác định");
     return;
   }
 
@@ -590,7 +555,7 @@ async function viewClassDetail(maLop) {
     const data = await apiCall("GET", `/lop-hoc-phan/${maLop}`);
 
     if (!data?.data) {
-      alert("❌ Không tìm thấy lớp học");
+      notifyAdmin("❌ Không tìm thấy lớp học");
       return;
     }
 
@@ -608,10 +573,10 @@ async function viewClassDetail(maLop) {
     document.getElementById("modalBody").innerHTML = `
             <h2>📚 ${lop.ma_lop_hoc}</h2>
             <div class="modal-detail">
-                <p><strong>Môn Học:</strong> ${lop.mon_hoc?.ten || "N/A"}</p>
-                <p><strong>Giảng Viên:</strong> ${lop.giang_vien?.ten || "N/A"}</p>
+                <p><strong>Môn Học:</strong> ${lop.mon_hoc?.ten || "—"}</p>
+                <p><strong>Giảng viên:</strong> ${lop.giang_vien?.ten || "—"}</p>
                 <p><strong>Phòng:</strong> ${lop.phong_hoc}</p>
-                <p><strong>Tín Chỉ:</strong> <span class="badge">${lop.mon_hoc?.tin_chi ?? "N/A"}</span></p>
+                <p><strong>Tín Chỉ:</strong> <span class="badge">${lop.mon_hoc?.tin_chi ?? "—"}</span></p>
                 <p><strong>Chỗ:</strong> ${lop.so_luong_con_trong}/${lop.so_luong_toi_da}</p>
                 <p><strong>Ngày:</strong> ${new Date(lop.ngay_bat_dau).toLocaleDateString("vi-VN")} - ${new Date(lop.ngay_ket_thuc).toLocaleDateString("vi-VN")}</p>
                 ${scheduleHtml}
@@ -619,7 +584,7 @@ async function viewClassDetail(maLop) {
         `;
     document.getElementById("modal").style.display = "flex";
   } catch (error) {
-    alert("Lỗi: " + error.message);
+    notifyAdmin("Lỗi: " + error.message);
   }
 }
 
@@ -639,7 +604,7 @@ function showAddStudentForm() {
       modal.show();
     })
     .catch((error) => {
-      alert("Lỗi tải chuyên ngành: " + error.message);
+      notifyAdmin("Lỗi tải chuyên ngành: " + error.message);
     });
 }
 
@@ -650,7 +615,7 @@ async function submitThemSinhVien() {
 
   // Validate required fields
   if (!data.ma_sinh_vien || !data.ho_ten || !data.ma_chuyen_nganh) {
-    alert("Vui lòng điền đầy đủ thông tin bắt buộc!");
+    notifyAdmin("Vui lòng điền đầy đủ thông tin bắt buộc!");
     return;
   }
 
@@ -667,12 +632,12 @@ async function submitThemSinhVien() {
       // Reload bảng
       loadStudents();
       // Thông báo
-      alert(`Tạo thành công! ${response.data.mat_khau_mac_dinh}`);
+      notifyAdmin(`Tạo thành công! ${response.data.mat_khau_mac_dinh}`);
     } else {
-      alert("Lỗi: " + response.message);
+      notifyAdmin("Lỗi: " + response.message);
     }
   } catch (error) {
-    alert("Lỗi: " + error.message);
+    notifyAdmin("Lỗi: " + error.message);
   }
 }
 
@@ -691,7 +656,7 @@ async function submitThemGiangVien() {
 
   // Validate required fields
   if (!data.ma_giang_vien || !data.ho_ten) {
-    alert("Vui lòng điền đầy đủ thông tin bắt buộc!");
+    notifyAdmin("Vui lòng điền đầy đủ thông tin bắt buộc!");
     return;
   }
 
@@ -708,12 +673,12 @@ async function submitThemGiangVien() {
       // Reload bảng
       loadLecturers();
       // Thông báo
-      alert("Tạo giảng viên thành công!");
+      notifyAdmin("Tạo giảng viên thành công!");
     } else {
-      alert("Lỗi: " + response.message);
+      notifyAdmin("Lỗi: " + response.message);
     }
   } catch (error) {
-    alert("Lỗi: " + error.message);
+    notifyAdmin("Lỗi: " + error.message);
   }
 }
 
@@ -754,7 +719,7 @@ function showAddClassForm() {
       modal.show();
     })
     .catch((error) => {
-      alert("Lỗi tải dữ liệu: " + error.message);
+      notifyAdmin("Lỗi tải dữ liệu: " + error.message);
     });
 }
 
@@ -784,7 +749,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   // Display user info
-  document.getElementById("userInfo").textContent = `👨‍💼 ${user.ten_dang_nhap}`;
+  document.getElementById("userInfo").textContent = `${user.ten_dang_nhap}`;
 
   // Hiển thị loading skeleton
   showLoadingState();
@@ -799,7 +764,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     // Cập nhật user info
     localStorage.setItem("user", JSON.stringify(userRes.data));
     document.getElementById("userInfo").textContent =
-      `👨‍💼 ${userRes.data.ten_dang_nhap}`;
+      `${userRes.data.ten_dang_nhap}`;
 
     // Load dữ liệu dashboard
     await loadAdminDashboard();
@@ -840,7 +805,7 @@ async function submitThemLopHocPhan() {
     !data.id_hoc_ky ||
     !data.so_luong_toi_da
   ) {
-    alert("Vui lòng điền đầy đủ thông tin bắt buộc!");
+    notifyAdmin("Vui lòng điền đầy đủ thông tin bắt buộc!");
     return;
   }
 
@@ -848,7 +813,7 @@ async function submitThemLopHocPhan() {
   data.id_hoc_ky = Number(data.id_hoc_ky);
   data.so_luong_toi_da = Number(data.so_luong_toi_da);
   if (data.ngay_bat_dau && data.ngay_ket_thuc && data.ngay_bat_dau > data.ngay_ket_thuc) {
-    alert("Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc");
+    notifyAdmin("Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc");
     return;
   }
 
@@ -872,21 +837,21 @@ async function submitThemLopHocPhan() {
       // Reload bảng
       loadClasses();
       // Thông báo
-      alert("Tạo lớp học phần thành công!");
+      notifyAdmin("Tạo lớp học phần thành công!");
     } else {
-      alert("Lỗi: " + response.message);
+      notifyAdmin("Lỗi: " + response.message);
     }
   } catch (error) {
-    alert("Lỗi: " + error.message);
+    notifyAdmin("Lỗi: " + error.message);
   }
 }
 
 function getStatusLabel(status) {
   const labels = {
-    cho_duyet: "⏳ Chờ Duyệt",
-    da_duyet: "✅ Đã Duyệt",
-    tu_choi: "❌ Từ Chối",
-    da_huy: "🔄 Đã Hủy",
+    cho_duyet: "Chờ duyệt",
+    da_duyet: "Đã duyệt",
+    tu_choi: "Từ chối",
+    da_huy: "Đã hủy",
   };
   return labels[status] || status;
 }
@@ -895,7 +860,7 @@ function closeModal() {
   document.getElementById("modal").style.display = "none";
 }
 
-// Hoc Ky functions
+// Học kỳ functions
 function showAddHocKyForm() {
   document.getElementById("hocKyForm").reset();
   document.getElementById("hocKyModalLabel").textContent = "Thêm Học Kỳ";
@@ -917,7 +882,7 @@ async function editHocKy(id) {
     document.getElementById("hocKyModalLabel").textContent = "Sửa Học Kỳ";
     openBsModal("hocKyModal");
   } catch (error) {
-    alert("Lỗi: " + error.message);
+    notifyAdmin("Lỗi: " + error.message);
   }
 }
 
@@ -931,11 +896,11 @@ async function saveHocKy() {
   };
 
   if (!data.ten_hoc_ky || !data.nam_hoc || !data.ngay_bat_dau_dk || !data.ngay_ket_thuc_dk) {
-    alert("Vui lòng nhập đầy đủ thông tin học kỳ");
+    notifyAdmin("Vui lòng nhập đầy đủ thông tin học kỳ");
     return;
   }
   if (data.ngay_bat_dau_dk > data.ngay_ket_thuc_dk) {
-    alert("Ngày bắt đầu đăng ký phải nhỏ hơn hoặc bằng ngày kết thúc đăng ký");
+    notifyAdmin("Ngày bắt đầu đăng ký phải nhỏ hơn hoặc bằng ngày kết thúc đăng ký");
     return;
   }
 
@@ -948,7 +913,7 @@ async function saveHocKy() {
     closeBsModal("hocKyModal");
     loadHocKy();
   } catch (error) {
-    alert("Lỗi: " + error.message);
+    notifyAdmin("Lỗi: " + error.message);
   }
 }
 
@@ -957,21 +922,21 @@ async function activateHocKy(id) {
     await apiCall("PATCH", `/hoc-ky/${id}/kich-hoat`);
     loadHocKy();
   } catch (error) {
-    alert("Lỗi: " + error.message);
+    notifyAdmin("Lỗi: " + error.message);
   }
 }
 
 async function deleteHocKy(id) {
-  if (!confirm("Bạn có chắc chắn muốn xóa?")) return;
+  if (!await askAdmin("Bạn có chắc chắn muốn xóa?")) return;
   try {
     await apiCall("DELETE", `/hoc-ky/${id}`);
     loadHocKy();
   } catch (error) {
-    alert("Lỗi: " + error.message);
+    notifyAdmin("Lỗi: " + error.message);
   }
 }
 
-// Mon Hoc functions
+// Môn học functions
 function showAddMonHocForm() {
   document.getElementById("monHocForm").reset();
   document.getElementById("monHocModalLabel").textContent = "Thêm Môn Học";
@@ -990,7 +955,7 @@ async function editMonHoc(ma) {
     document.getElementById("monHocModalLabel").textContent = "Sửa Môn Học";
     openBsModal("monHocModal");
   } catch (error) {
-    alert("Lỗi: " + error.message);
+    notifyAdmin("Lỗi: " + error.message);
   }
 }
 
@@ -1011,38 +976,38 @@ async function saveMonHoc() {
     closeBsModal("monHocModal");
     loadMonHoc();
   } catch (error) {
-    alert("Lỗi: " + error.message);
+    notifyAdmin("Lỗi: " + error.message);
   }
 }
 
 async function deleteMonHoc(ma) {
-  if (!confirm("Bạn có chắc chắn muốn xóa?")) return;
+  if (!await askAdmin("Bạn có chắc chắn muốn xóa?")) return;
   try {
     await apiCall("DELETE", `/mon-hoc/${ma}`);
     loadMonHoc();
   } catch (error) {
-    alert("Lỗi: " + error.message);
+    notifyAdmin("Lỗi: " + error.message);
   }
 }
 
 async function resetPassword(id_nguoi_dung) {
   if (!id_nguoi_dung) {
-    alert("Không tìm thấy tài khoản để đặt lại mật khẩu.");
+    notifyAdmin("Không tìm thấy tài khoản để đặt lại mật khẩu.");
     return;
   }
-  if (!confirm("Đặt lại mật khẩu về Abcd@1234?")) return;
+  if (!await askAdmin("Đặt lại mật khẩu về Abcd@1234?")) return;
   try {
     const response = await apiCall(
       "PATCH",
       `/auth/tai-khoan/${id_nguoi_dung}/reset-mat-khau`,
     );
     if (response.success) {
-      alert("Đặt lại mật khẩu thành công!");
+      notifyAdmin("Đặt lại mật khẩu thành công!");
     } else {
-      alert("Lỗi: " + response.message);
+      notifyAdmin("Lỗi: " + response.message);
     }
   } catch (error) {
-    alert("Lỗi: " + error.message);
+    notifyAdmin("Lỗi: " + error.message);
   }
 }
 
@@ -1066,14 +1031,14 @@ async function loadChuyenNganh() {
       tableBody.appendChild(row);
     });
   } catch (error) {
-    alert("Lỗi tải danh sách chuyên ngành: " + error.message);
+    notifyAdmin("Lỗi tải danh sách chuyên ngành: " + error.message);
   }
 }
 
 function showAddChuyenNganhForm() {
   document.getElementById("chuyenNganhForm").reset();
   document.getElementById("chuyenNganhModalLabel").textContent =
-    "Thêm Chuyên Ngành";
+    "Thêm Chuyên ngành";
   document.getElementById("chuyenNganhId").value = "";
   openBsModal("chuyenNganhModal");
 }
@@ -1085,10 +1050,10 @@ async function editChuyenNganh(ma) {
     document.getElementById("tenChuyenNganh").value =
       data.data.ten_chuyen_nganh;
     document.getElementById("chuyenNganhModalLabel").textContent =
-      "Sửa Chuyên Ngành";
+      "Sửa Chuyên ngành";
     openBsModal("chuyenNganhModal");
   } catch (error) {
-    alert("Lỗi tải chuyên ngành: " + error.message);
+    notifyAdmin("Lỗi tải chuyên ngành: " + error.message);
   }
 }
 
@@ -1108,17 +1073,17 @@ async function saveChuyenNganh() {
     closeBsModal("chuyenNganhModal");
     loadChuyenNganh();
   } catch (error) {
-    alert("Lỗi lưu chuyên ngành: " + error.message);
+    notifyAdmin("Lỗi lưu chuyên ngành: " + error.message);
   }
 }
 
 async function deleteChuyenNganh(ma) {
-  if (!confirm("Bạn có chắc chắn muốn xóa?")) return;
+  if (!await askAdmin("Bạn có chắc chắn muốn xóa?")) return;
   try {
     await apiCall("DELETE", `/chuyen-nganh/${ma}`);
     loadChuyenNganh();
   } catch (error) {
-    alert("Lỗi: " + error.message);
+    notifyAdmin("Lỗi: " + error.message);
   }
 }
 
@@ -1140,7 +1105,7 @@ function showCauHinhTinChiForm() {
       openBsModal("cauHinhTinChiModal");
     })
     .catch((error) => {
-      alert("Lỗi tải học kỳ: " + error.message);
+      notifyAdmin("Lỗi tải học kỳ: " + error.message);
     });
 }
 
@@ -1150,18 +1115,18 @@ async function saveCauHinhTinChi() {
   const soTinChiToiDa = Number(document.getElementById("soTinChiToiDa").value);
 
   if (!idHocKy) {
-    alert("Vui lòng chọn học kỳ cần cấu hình");
+    notifyAdmin("Vui lòng chọn học kỳ cần cấu hình");
     return;
   }
 
   if (!Number.isInteger(soTinChiToiDa) || soTinChiToiDa <= 0) {
-    alert("Số tín chỉ tối đa phải là số nguyên dương");
+    notifyAdmin("Số tín chỉ tối đa phải là số nguyên dương");
     return;
   }
 
   const selectedOption = selectHocKy.options[selectHocKy.selectedIndex];
   if (selectedOption?.dataset?.active !== "true") {
-    alert(
+    notifyAdmin(
       "Học kỳ này chưa kích hoạt. Vui lòng kích hoạt học kỳ trước khi cấu hình tín chỉ.",
     );
     return;
@@ -1172,9 +1137,9 @@ async function saveCauHinhTinChi() {
       tin_chi_toi_da: soTinChiToiDa,
     });
     closeBsModal("cauHinhTinChiModal");
-    alert("Cấu hình tín chỉ thành công!");
+    notifyAdmin("Cấu hình tín chỉ thành công!");
   } catch (error) {
-    alert("Không thể cấu hình tín chỉ: " + error.message);
+    notifyAdmin("Không thể cấu hình tín chỉ: " + error.message);
   }
 }
 
@@ -1183,3 +1148,37 @@ async function saveCauHinhTinChi() {
 
 
 
+
+function openPending() {
+  document.getElementById("statusFilter").value = "cho_duyet";
+  showPage("registrations");
+}
+function notifyAdmin(message) {
+  document.getElementById("feedbackText").textContent = message;
+  document.getElementById("feedback").hidden = false;
+}
+function askAdmin(title, withReason = false) {
+  const dialog = document.getElementById("taskDialog");
+  if (dialog.open) return Promise.resolve(null);
+  const reason = document.getElementById("taskReason");
+  document.getElementById("taskTitle").textContent = title;
+  document.getElementById("reasonLabel").hidden = !withReason;
+  document.getElementById("taskAccept").textContent = withReason ? "Từ chối yêu cầu" : "Xác nhận";
+  reason.value = "";
+  dialog.returnValue = "";
+  return new Promise(resolve => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue === "ok" ? (withReason ? reason.value : true) : null), {once:true});
+    dialog.showModal();
+    if (withReason) reason.focus();
+  });
+}
+async function exitAdmin() {
+  if (!await askAdmin("Đăng xuất khỏi trang quản trị?")) return;
+  localStorage.removeItem("user");
+  localStorage.removeItem("token");
+  location.href = "../login.html";
+}
+document.getElementById("navToggle").addEventListener("click", event => {
+  const expanded = document.querySelector(".sidebar").classList.toggle("expanded");
+  event.currentTarget.setAttribute("aria-expanded", String(expanded));
+});

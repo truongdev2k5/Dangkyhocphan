@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dashboard Sinh Viên - Đăng Ký Học Phần</title>
+    <title>Cổng sinh viên · Đăng ký học phần</title>
     <link rel="stylesheet" href="../shared/style.css" />
     <style>
       body {
@@ -427,10 +427,11 @@
         color: #000;
       }
     </style>
+  <link rel="stylesheet" href="portal.css">
   </head>
   <body>
     <nav class="navbar">
-      <div class="navbar-brand">🎓 Hệ Thống Đăng Ký Học Phần</div>
+      <div class="navbar-brand"><b class="seal">UTT</b> Cổng sinh viên</div>
       <div class="navbar-menu">
         <div class="user-menu-wrap">
           <button
@@ -438,7 +439,7 @@
             class="user-menu-toggle"
             onclick="toggleStudentInfoMenu(event)"
           >
-            <span>👤</span>
+            <span aria-hidden="true">●</span>
             <span id="userInfo" class="user-info">...</span>
           </button>
           <div id="studentInfoMenu" class="user-info-menu">
@@ -446,7 +447,7 @@
               <div><strong>MSSV:</strong> <span id="svMa">...</span></div>
               <div><strong>Họ tên:</strong> <span id="svHoTen">...</span></div>
               <div><strong>Chuyên ngành:</strong> <span id="svChuyenNganh">...</span></div>
-              <div><strong>Email:</strong> <span id="svEmail">...</span></div>
+              <div><strong>Thư điện tử:</strong> <span id="svEmail">...</span></div>
               <div><strong>SĐT:</strong> <span id="svSdt">...</span></div>
             </div>
           </div>
@@ -454,28 +455,28 @@
         <button onclick="openDoiMatKhauModal()" class="btn btn-secondary">
           Đổi mật khẩu
         </button>
-        <button onclick="logout()" class="btn btn-danger">Đăng Xuất</button>
+        <button onclick="studentLogout()" class="btn btn-danger">Đăng xuất</button>
       </div>
     </nav>
 
     <div class="top-info">
-      <div class="top-left">
+      <div class="arc-art" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div class="top-left"><h1>Đăng ký học phần</h1>
         <strong id="hocKyHienTai">Học kỳ đang tải...</strong>
       </div>
       <div id="dbStatus" style="font-weight: 600; color: #333">
-        Đang kiểm tra kết nối DB...
+        Đang kiểm tra kết nối hệ thống...
       </div>
     </div>
 
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="switchTab('browse')">
-        📚 Tìm Kiếm Lớp
+        Tra cứu lớp
       </button>
       <button class="nav-tab" onclick="switchTab('registered')">
-        ✅ Lớp Đã Đăng Ký
+        Đăng ký của tôi
       </button>
       <button class="nav-tab" onclick="switchTab('schedule')">
-        📅 Lịch Học
+        Lịch học
       </button>
     </div>
 
@@ -483,23 +484,23 @@
       <!-- Quick Stats -->
       <div class="quick-stats">
         <div class="stat-item">
-          <label>📚 Lớp Có Sẵn</label>
+          <label>Lớp mở</label>
           <strong id="totalClasses">0</strong>
         </div>
         <div class="stat-item">
-          <label>✅ Đã Đăng Ký</label>
+          <label>Lớp đã duyệt</label>
           <strong id="totalRegistered">0</strong>
         </div>
         <div class="stat-item">
-          <label>⭐ Tín Chỉ</label>
+          <label>Tín chỉ đã duyệt</label>
           <strong id="totalCredits">0</strong>
         </div>
         <div class="stat-item">
-          <label>Giới Hạn Tín Chỉ Kỳ</label>
+          <label>Giới hạn tín chỉ</label>
           <strong id="maxCreditsAllowed">--</strong>
         </div>
         <div class="stat-item">
-          <label>⏳ Chờ Duyệt</label>
+          <label>Yêu cầu chờ duyệt</label>
           <strong id="pendingReg">0</strong>
         </div>
       </div>
@@ -507,12 +508,12 @@
       <!-- Browse Tab -->
       <div id="browse" class="tab-pane active">
         <div class="section-header">
-          <h2>📚 Danh Sách Lớp Học Phần</h2>
+          <h2>Danh sách lớp học phần</h2>
           <div class="search-box">
             <input
               type="text"
               id="searchClass"
-              placeholder="🔍 Tìm lớp, môn học..."
+              aria-label="Tìm lớp học phần" placeholder="Tìm mã lớp, môn học, giảng viên…"
               onkeyup="searchClasses()"
             />
           </div>
@@ -524,13 +525,13 @@
 
       <!-- Registered Tab -->
       <div id="registered" class="tab-pane">
-        <h2 style="margin-bottom: 20px">✅ Các Lớp Của Tôi</h2>
+        <h2 style="margin-bottom: 20px">Lớp đã duyệt</h2>
         <div class="classes-grid" id="myClassesGrid">
           <div class="empty-state">Chưa đăng ký lớp nào</div>
         </div>
 
         <h3 style="margin-top: 35px; margin-bottom: 15px">
-          📋 Chi Tiết Đăng Ký
+          Chi tiết đăng ký
         </h3>
         <div style="overflow-x: auto">
           <table class="reg-table">
@@ -554,7 +555,7 @@
 
       <!-- Schedule Tab -->
       <div id="schedule" class="tab-pane">
-        <h2 style="margin-bottom: 20px">📅 Lịch Học Của Tôi</h2>
+        <h2 style="margin-bottom: 20px">Lịch học của tôi</h2>
         <div
           id="scheduleGrid"
           style="
@@ -670,7 +671,13 @@
 
     <script src="../shared/auth.js"></script>
     <script src="student.js"></script>
-  </body>
+  
+<dialog id="studentDialog" class="student-dialog" aria-labelledby="dialogTitle" aria-describedby="dialogText">
+  <h2 id="dialogTitle"></h2><p id="dialogText"></p>
+  <form method="dialog"><button class="btn btn-secondary" value="cancel" autofocus>Quay lại</button><button class="btn btn-primary" id="dialogAccept" value="ok"></button></form>
+</dialog>
+<div id="studentNotice" class="student-notice" hidden><span id="noticeText" role="status" aria-live="polite"></span><button type="button" aria-label="Đóng thông báo" onclick="this.parentElement.hidden=true">×</button></div>
+</body>
 </html>
 
 

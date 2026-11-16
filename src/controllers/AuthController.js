@@ -1,20 +1,29 @@
 // src/controllers/AuthController.js
 const AuthService = require("../services/AuthService");
 
+const LoginAttempts = require("../services/LoginAttempts");
+const loginAttempts = new LoginAttempts();
+
 class AuthController {
   async login(req, res, next) {
     try {
       const { ten_dang_nhap, mat_khau } = req.body;
-      if (!ten_dang_nhap || !mat_khau)
+      if (typeof ten_dang_nhap !== "string" || !ten_dang_nhap.trim() ||
+          typeof mat_khau !== "string" || !mat_khau)
         return res
           .status(400)
           .json({
             success: false,
             message: "Thiếu tên đăng nhập hoặc mật khẩu",
           });
-      const data = await AuthService.login(ten_dang_nhap, mat_khau);
+      const data = await loginAttempts.run(JSON.stringify([req.ip, ten_dang_nhap.trim().normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase()]),
+        () => AuthService.login(ten_dang_nhap, mat_khau));
       res.json({ success: true, data });
     } catch (err) {
+      if (err.status === 429) {
+        res.set("Retry-After", String(err.retryAfter));
+        return res.status(429).json({ success: false, message: err.message, retryAfter: err.retryAfter });
+      }
       next(err);
     }
   }

@@ -1,3 +1,50 @@
+
+function foldName(value) {
+  return String(value || "").normalize("NFD").replace(/\p{M}/gu, "").replace(/[đĐ]/g, "d").toLowerCase().trim();
+}
+
+const subjectLabels = new Map([
+  "Toán cao cấp", "Lập trình C", "Cơ sở dữ liệu", "Mạng máy tính",
+  "Phân tích và thiết kế hệ thống", "Java cơ bản", "Lập trình Web",
+  "Cấu trúc dữ liệu và giải thuật", "Hệ điều hành", "Kiểm thử phần mềm",
+  "Trí tuệ nhân tạo", "An toàn thông tin"
+].map(name => [foldName(name), name]));
+
+function subjectLabel(name) {
+  return subjectLabels.get(foldName(name)) || name || "Chưa cập nhật";
+}
+
+function studentNotice(message, problem = false) {
+  const notice = document.getElementById("studentNotice");
+  notice.classList.toggle("problem", problem);
+  notice.hidden = false;
+  document.getElementById("noticeText").textContent = message;
+}
+
+function studentConfirm(title, message, action) {
+  const dialog = document.getElementById("studentDialog");
+  if (dialog.open) return Promise.resolve(false);
+  dialog.returnValue = "";
+  document.getElementById("dialogTitle").textContent = title;
+  document.getElementById("dialogText").textContent = message;
+  document.getElementById("dialogAccept").textContent = action;
+  return new Promise(resolve => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue === "ok"), {once: true});
+    dialog.showModal();
+  });
+}
+
+async function studentLogout() {
+  if (!await studentConfirm("Đăng xuất", "Bạn muốn kết thúc phiên đăng nhập hiện tại?", "Đăng xuất")) return;
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  window.location.href = "../login.html";
+}
+
+function showCourseInfo(code) {
+  const course = window.allClasses?.find(item => item.ma_lop_hoc === code);
+  if (course) studentNotice([subjectLabel(course.mon_hoc?.ten), code, course.phong_hoc && "Phòng " + course.phong_hoc].filter(Boolean).join(" · "));
+}
 ﻿// ==================== UTILITY FUNCTIONS ====================
 
 async function fetchWithTimeout(url, options = {}, ms = 5000) {
@@ -77,14 +124,14 @@ async function checkDbStatus() {
     const json = await res.json();
 
     if (res.ok && json.db === "connected") {
-      statusEl.textContent = "✅ API + DB đã kết nối";
+      statusEl.textContent = "";
       statusEl.style.color = "#0a7";
     } else {
-      statusEl.textContent = "⚠️ API đang chạy nhưng DB chưa kết nối";
+      statusEl.textContent = "⚠️ Chưa kết nối cơ sở dữ liệu";
       statusEl.style.color = "#c00";
     }
   } catch (err) {
-    statusEl.textContent = "❌ Không kết nối được API/DB";
+    statusEl.textContent = "❌ Mất kết nối với hệ thống";
     statusEl.style.color = "#c00";
     console.error(err);
   }
@@ -133,7 +180,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     // Kiểm tra user info từ API
     const userRes = await apiCall("GET", "/auth/me");
     if (!userRes.success) {
-      throw new Error("Không thể lấy thông tin user");
+      throw new Error("Không thể lấy thông tin tài khoản");
     }
 
     // Cập nhật user info
@@ -187,12 +234,12 @@ async function loadStudentProfileAndSemester() {
 
     if (svResult.status === "fulfilled") {
       const sv = svResult.value?.data || {};
-      document.getElementById("svMa").textContent = sv.ma_sinh_vien || "N/A";
-      document.getElementById("svHoTen").textContent = sv.ho_ten || "N/A";
+      document.getElementById("svMa").textContent = sv.ma_sinh_vien || "Chưa cập nhật";
+      document.getElementById("svHoTen").textContent = sv.ho_ten || "Chưa cập nhật";
       document.getElementById("svChuyenNganh").textContent =
-        sv.chuyen_nganh?.ten || "N/A";
-      document.getElementById("svEmail").textContent = sv.email || "N/A";
-      document.getElementById("svSdt").textContent = sv.so_dien_thoai || "N/A";
+        sv.chuyen_nganh?.ten || "Chưa cập nhật";
+      document.getElementById("svEmail").textContent = sv.email || "Chưa cập nhật";
+      document.getElementById("svSdt").textContent = sv.so_dien_thoai || "Chưa cập nhật";
     }
 
     if (hkResult.status === "fulfilled") {
@@ -200,7 +247,7 @@ async function loadStudentProfileAndSemester() {
       if (hk) {
         activeSemesterId = Number(hk.id_hoc_ky || hk.id);
         document.getElementById("hocKyHienTai").textContent =
-          `Học kỳ ${hk.ten_hoc_ky} - ${hk.nam_hoc}`;
+          `${hk.ten_hoc_ky} · ${hk.nam_hoc}`;
 
         try {
           const config = await apiCall(
@@ -261,21 +308,21 @@ async function loadClasses() {
         (c) => `
             <div class="class-card">
                 <div class="class-header">
-                    <div class="class-code">${c.ma_lop_hoc || "N/A"}</div>
-                    <div class="class-subject">${c.mon_hoc?.ten || "N/A"}</div>
+                    <div class="class-code">${c.ma_lop_hoc || "Chưa cập nhật"}</div>
+                    <div class="class-subject">${subjectLabel(c.mon_hoc?.ten)}</div>
                 </div>
                 <div class="class-body">
                     <div class="class-row">
-                        <label>GV:</label>
-                        <span>${c.giang_vien?.ten || "N/A"}</span>
+                        <label>Giảng viên</label>
+                        <span>${c.giang_vien?.ten || "Chưa cập nhật"}</span>
                     </div>
                     <div class="class-row">
                         <label>Phòng:</label>
-                        <span>${c.phong_hoc || "N/A"}</span>
+                        <span>${c.phong_hoc || "Chưa cập nhật"}</span>
                     </div>
                     <div class="class-row">
                         <label>Thời gian:</label>
-                        <span>${c.lich_hoc?.map((slot) => `${getDayName(slot.thu_trong_tuan)}, ${slot.gio_bat_dau}-${slot.gio_ket_thuc}`).join("; ") || "N/A"}</span>
+                        <span>${c.lich_hoc?.map((slot) => `${getDayName(slot.thu_trong_tuan)}, ${slot.gio_bat_dau.slice(0, 5)}–${slot.gio_ket_thuc.slice(0, 5)}`).join("; ") || "Chưa cập nhật"}</span>
                     </div>
                     <div class="class-row">
                         <label>Tín chỉ:</label>
@@ -295,10 +342,10 @@ async function loadClasses() {
                 <div class="class-footer">
                     ${
                       c.so_luong_con_trong > 0
-                        ? `<button class="btn btn-primary" onclick="registerClass('${c.ma_lop_hoc}')">Đăng Ký</button>`
+                        ? `<button class="btn btn-primary" onclick="registerClass('${c.ma_lop_hoc}')">Đăng ký</button>`
                         : `<button class="btn btn-disabled" disabled>Hết chỗ</button>`
                     }
-                    <button class="btn btn-secondary" onclick="alert('Chi tiết lớp #${c.ma_lop_hoc}')">Chi tiết</button>
+                    <button class="btn btn-secondary" onclick="showCourseInfo('${c.ma_lop_hoc}')">Chi tiết</button>
                 </div>
             </div>
         `,
@@ -334,21 +381,21 @@ async function loadMyRegistrations() {
         (d) => `
             <div class="class-card">
                 <div class="class-header">
-                    <div class="class-code">${d.lop_hoc_phan?.ma_lop_hoc || "N/A"}</div>
-                    <div class="class-subject">${d.lop_hoc_phan?.mon_hoc?.ten || "N/A"}</div>
+                    <div class="class-code">${d.lop_hoc_phan?.ma_lop_hoc || "Chưa cập nhật"}</div>
+                    <div class="class-subject">${subjectLabel(d.lop_hoc_phan?.mon_hoc?.ten)}</div>
                 </div>
                 <div class="class-body">
                     <div class="class-row">
-                        <label>GV:</label>
-                        <span>${d.lop_hoc_phan?.giang_vien?.ten || "N/A"}</span>
+                        <label>Giảng viên</label>
+                        <span>${d.lop_hoc_phan?.giang_vien?.ten || "Chưa cập nhật"}</span>
                     </div>
                     <div class="class-row">
                         <label>Phòng:</label>
-                        <span>${d.lop_hoc_phan?.phong_hoc || "N/A"}</span>
+                        <span>${d.lop_hoc_phan?.phong_hoc || "Chưa cập nhật"}</span>
                     </div>
                     <div class="class-row">
                         <label>Thời gian:</label>
-                        <span>${d.lop_hoc_phan?.lich_hoc?.map((slot) => `${getDayName(slot.thu_trong_tuan)}, ${slot.gio_bat_dau}-${slot.gio_ket_thuc}`).join("; ") || "N/A"}</span>
+                        <span>${d.lop_hoc_phan?.lich_hoc?.map((slot) => `${getDayName(slot.thu_trong_tuan)}, ${slot.gio_bat_dau.slice(0, 5)}–${slot.gio_ket_thuc.slice(0, 5)}`).join("; ") || "Chưa cập nhật"}</span>
                     </div>
                     <div class="class-row">
                         <label>Trạng thái:</label>
@@ -356,7 +403,7 @@ async function loadMyRegistrations() {
                     </div>
                 </div>
                 <div class="class-footer">
-                    <button class="btn btn-disabled" disabled>Da duyet - khong the tu huy</button>
+                    <button class="btn btn-disabled" disabled>Đã duyệt · Không thể tự hủy</button>
                 </div>
             </div>
         `,
@@ -372,16 +419,16 @@ async function loadMyRegistrations() {
         const statusClass = d.trang_thai.replace(/_/g, "_");
         return `
                 <tr>
-                    <td>${d.lop_hoc_phan?.mon_hoc?.ten || "N/A"}</td>
+                    <td>${subjectLabel(d.lop_hoc_phan?.mon_hoc?.ten)}</td>
                     <td>${d.lop_hoc_phan?.mon_hoc?.tin_chi || 0}</td>
                     <td><span class="status-badge ${statusClass}">${getStatusName(d.trang_thai)}</span></td>
                     <td>${new Date(d.ngay_dang_ky).toLocaleDateString("vi-VN")}</td>
                     <td>
                         ${
                           d.trang_thai === "cho_duyet"
-                            ? `<button class="btn btn-sm btn-danger" onclick="cancelRegistration(${d.id_dang_ky})">Huy</button>`
+                            ? `<button class="btn btn-sm btn-danger" onclick="cancelRegistration(${d.id_dang_ky})">Hủy</button>`
                             : d.trang_thai === "tu_choi"
-                              ? `<span style="color: #c00;">${d.ghi_chu_tu_choi || "Bi tu choi"}</span>`
+                              ? `<span style="color: #c00;">${d.ghi_chu_tu_choi || "Đã từ chối"}</span>`
                               : '<span style="color: #999;">-</span>'
                         }
                     </td>
@@ -420,21 +467,21 @@ async function loadSchedule() {
         (d) => `
             <div class="class-card">
                 <div class="class-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <div class="class-code">${d.lop_hoc_phan?.ma_lop_hoc || "N/A"}</div>
-                    <div class="class-subject">${d.lop_hoc_phan?.mon_hoc?.ten || "N/A"}</div>
+                    <div class="class-code">${d.lop_hoc_phan?.ma_lop_hoc || "Chưa cập nhật"}</div>
+                    <div class="class-subject">${subjectLabel(d.lop_hoc_phan?.mon_hoc?.ten)}</div>
                 </div>
                 <div class="class-body">
                     <div class="class-row">
                         <label>Lịch học:</label>
-                        <span><strong>${d.lop_hoc_phan?.lich_hoc?.map((slot) => `${getDayName(slot.thu_trong_tuan)}, ${slot.gio_bat_dau}-${slot.gio_ket_thuc}`).join("; ") || "N/A"}</strong></span>
+                        <span><strong>${d.lop_hoc_phan?.lich_hoc?.map((slot) => `${getDayName(slot.thu_trong_tuan)}, ${slot.gio_bat_dau.slice(0, 5)}–${slot.gio_ket_thuc.slice(0, 5)}`).join("; ") || "Chưa cập nhật"}</strong></span>
                     </div>
                     <div class="class-row">
                         <label>Phòng:</label>
-                        <span>${d.lop_hoc_phan?.phong_hoc || "N/A"}</span>
+                        <span>${d.lop_hoc_phan?.phong_hoc || "Chưa cập nhật"}</span>
                     </div>
                     <div class="class-row">
                         <label>Giảng viên:</label>
-                        <span>${d.lop_hoc_phan?.giang_vien?.ten || "N/A"}</span>
+                        <span>${d.lop_hoc_phan?.giang_vien?.ten || "Chưa cập nhật"}</span>
                     </div>
                     <div class="class-row">
                         <label>Tín chỉ:</label>
@@ -481,13 +528,13 @@ async function updateStats() {
 // ==================== ACTION FUNCTIONS ====================
 
 async function registerClass(classId) {
-  if (!confirm("Bạn chắc chắn muốn đăng ký lớp này?")) return;
+  if (!await studentConfirm("Đăng ký học phần", "Gửi yêu cầu đăng ký lớp " + classId + "?", "Đăng ký")) return;
 
   try {
     // Kiểm tra trùng lịch
     const checkRes = await apiCall("GET", `/lich-hoc/kiem-tra/${classId}`);
     if (checkRes?.trung_lich) {
-      alert("❌ Lịch học trùng với lớp đã đăng ký. Không thể đăng ký!");
+      studentNotice("Lịch học trùng với một lớp đã được duyệt. Vui lòng chọn lớp khác.", true);
       return;
     }
 
@@ -496,44 +543,44 @@ async function registerClass(classId) {
     });
 
     if (response) {
-      alert("✅ Đăng ký thành công! Chờ admin duyệt.");
+      studentNotice("Đã gửi yêu cầu đăng ký lớp " + classId + ". Vui lòng chờ xét duyệt.");
       loadClasses();
       loadMyRegistrations();
       updateStats();
     }
   } catch (error) {
-    alert("❌ Lỗi: " + (error.message || "Không thể đăng ký"));
+    studentNotice(error.message || "Không thể đăng ký.", true);
   }
 }
 
 async function cancelRegistration(registrationId) {
-  if (!confirm("Bạn chắc chắn muốn hủy đăng ký?")) return;
+  if (!await studentConfirm("Hủy yêu cầu", "Bạn muốn hủy yêu cầu đăng ký lớp này?", "Hủy đăng ký")) return;
 
   try {
     const response = await apiCall("DELETE", `/dang-ky/${registrationId}`);
 
     if (response) {
-      alert("✅ Hủy đăng ký thành công!");
+      studentNotice("Đã hủy yêu cầu đăng ký.");
       loadMyRegistrations();
       updateStats();
     }
   } catch (error) {
-    alert("❌ Lỗi: " + (error.message || "Không thể hủy đăng ký"));
+    studentNotice(error.message || "Không thể hủy đăng ký.", true);
   }
 }
 
 function searchClasses() {
-  const keyword = document.getElementById("searchClass").value.toLowerCase();
+  const keyword = foldName(document.getElementById("searchClass").value);
 
   if (!window.allClasses) return;
 
   const filtered = window.allClasses.filter(
     (c) =>
-      (c.ma_lop_hoc && c.ma_lop_hoc.toLowerCase().includes(keyword)) ||
+      (c.ma_lop_hoc && foldName(c.ma_lop_hoc).includes(keyword)) ||
       (c.mon_hoc?.ten &&
-        c.mon_hoc.ten.toLowerCase().includes(keyword)) ||
+        foldName(c.mon_hoc.ten).includes(keyword)) ||
       (c.giang_vien?.ten &&
-        c.giang_vien.ten.toLowerCase().includes(keyword)),
+        foldName(c.giang_vien.ten).includes(keyword)),
   );
 
   const html = filtered
@@ -541,21 +588,21 @@ function searchClasses() {
       (c) => `
         <div class="class-card">
             <div class="class-header">
-                <div class="class-code">${c.ma_lop_hoc || "N/A"}</div>
-                <div class="class-subject">${c.mon_hoc?.ten || "N/A"}</div>
+                <div class="class-code">${c.ma_lop_hoc || "Chưa cập nhật"}</div>
+                <div class="class-subject">${subjectLabel(c.mon_hoc?.ten)}</div>
             </div>
             <div class="class-body">
                 <div class="class-row">
-                    <label>GV:</label>
-                    <span>${c.giang_vien?.ten || "N/A"}</span>
+                    <label>Giảng viên</label>
+                    <span>${c.giang_vien?.ten || "Chưa cập nhật"}</span>
                 </div>
                 <div class="class-row">
                     <label>Phòng:</label>
-                    <span>${c.phong_hoc || "N/A"}</span>
+                    <span>${c.phong_hoc || "Chưa cập nhật"}</span>
                 </div>
                 <div class="class-row">
                     <label>Thời gian:</label>
-                    <span>${c.lich_hoc?.map((slot) => `${getDayName(slot.thu_trong_tuan)}, ${slot.gio_bat_dau}-${slot.gio_ket_thuc}`).join("; ") || "N/A"}</span>
+                    <span>${c.lich_hoc?.map((slot) => `${getDayName(slot.thu_trong_tuan)}, ${slot.gio_bat_dau.slice(0, 5)}–${slot.gio_ket_thuc.slice(0, 5)}`).join("; ") || "Chưa cập nhật"}</span>
                 </div>
                 <div class="class-row">
                     <label>Tín chỉ:</label>
@@ -575,10 +622,10 @@ function searchClasses() {
             <div class="class-footer">
                 ${
                   c.so_luong_con_trong > 0
-                    ? `<button class="btn btn-primary" onclick="registerClass('${c.ma_lop_hoc}')">Đăng Ký</button>`
+                    ? `<button class="btn btn-primary" onclick="registerClass('${c.ma_lop_hoc}')">Đăng ký</button>`
                     : `<button class="btn btn-disabled" disabled>Hết chỗ</button>`
                 }
-                <button class="btn btn-secondary" onclick="alert('Chi tiết lớp #${c.ma_lop_hoc}')">Chi tiết</button>
+                <button class="btn btn-secondary" onclick="showCourseInfo('${c.ma_lop_hoc}')">Chi tiết</button>
             </div>
         </div>
     `,
@@ -633,7 +680,7 @@ async function submitDoiMatKhau(event) {
     });
 
     if (response.success) {
-      alert("✅ Đổi mật khẩu thành công!");
+      studentNotice("Đã đổi mật khẩu.");
       closeDoiMatKhauModal();
     } else {
       errorDiv.textContent = "❌ " + (response.message || "Lỗi không xác định");

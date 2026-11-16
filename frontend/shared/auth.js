@@ -34,6 +34,23 @@ async function handleLogin(e) {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
+      if (response.status === 429 && error.retryAfter > 0) {
+        const button = document.querySelector(".btn-login");
+        const until = Date.now() + error.retryAfter * 1000;
+        clearInterval(button.loginTimer);
+        button.disabled = true;
+        const tick = () => {
+          const seconds = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+          errorDiv.textContent = seconds ? `Đăng nhập tạm khóa. Thử lại sau ${seconds} giây.` : "";
+          if (!seconds) {
+            clearInterval(button.loginTimer);
+            button.disabled = false;
+          }
+        };
+        button.loginTimer = setInterval(tick, 250);
+        tick();
+        return;
+      }
       errorDiv.textContent = error.message || `Lỗi ${response.status}`;
       return;
     }

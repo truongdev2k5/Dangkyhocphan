@@ -187,6 +187,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     localStorage.setItem("user", JSON.stringify(userRes.data));
     document.getElementById("userInfo").textContent = userRes.data.ten_dang_nhap;
 
+    startStudyGroups();
     await loadStudentProfileAndSemester();
     // Load dữ liệu
     await loadClasses();
@@ -378,7 +379,7 @@ async function loadMyRegistrations() {
     const approved = data.data.filter((d) => d.trang_thai === "da_duyet");
     const cardHtml = approved
       .map(
-        (d) => `
+        (d, index) => `
             <div class="class-card">
                 <div class="class-header">
                     <div class="class-code">${d.lop_hoc_phan?.ma_lop_hoc || "Chưa cập nhật"}</div>
@@ -403,7 +404,7 @@ async function loadMyRegistrations() {
                     </div>
                 </div>
                 <div class="class-footer">
-                    <button class="btn btn-disabled" disabled>Đã duyệt · Không thể tự hủy</button>
+                    <button type="button" class="btn btn-primary study-open" data-study-index="${index}">Học nhóm</button>
                 </div>
             </div>
         `,
@@ -412,6 +413,19 @@ async function loadMyRegistrations() {
 
     document.getElementById("myClassesGrid").innerHTML =
       cardHtml || '<div class="empty-state">Chưa có lớp nào được duyệt</div>';
+    for (const button of document.querySelectorAll("#myClassesGrid [data-study-index]")) {
+      const course = approved[Number(button.dataset.studyIndex)]?.lop_hoc_phan;
+      if (!course?.mon_hoc || !course?.hoc_ky) {
+        button.hidden = true;
+        continue;
+      }
+      button.addEventListener("click", () => openStudyGroups({
+        course: course.mon_hoc.ma,
+        semester: course.hoc_ky.id,
+        label: subjectLabel(course.mon_hoc.ten),
+        semesterLabel: [course.hoc_ky.ten, course.hoc_ky.nam_hoc].filter(Boolean).join(" · "),
+      }));
+    }
 
     // All registrations in table
     const tableHtml = data.data

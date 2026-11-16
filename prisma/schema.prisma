@@ -56,6 +56,8 @@ model MonHoc {
 
   LopHocPhan   LopHocPhan[]
 
+  BuoiHocNhom BuoiHocNhom[]
+
   @@map("mon_hoc")
 }
 
@@ -75,6 +77,10 @@ model SinhVien {
   ChuyenNganh     ChuyenNganh    @relation(fields: [ma_chuyen_nganh], references: [ma_chuyen_nganh])
   DanhSachDangKy  DanhSachDangKy[]
   LichSuDangKy    LichSuDangKy[]
+
+  BuoiHocNhom BuoiHocNhom[]
+  QuanTamHocNhom QuanTamHocNhom[]
+  ThongBaoHocNhom ThongBaoHocNhom[]
 
   @@map("sinh_vien")
 }
@@ -107,6 +113,8 @@ model HocKy {
 
   LopHocPhan       LopHocPhan[]
   CauHinhTinChi    CauHinhTinChi?
+
+  BuoiHocNhom BuoiHocNhom[]
 
   @@map("hoc_ky")
 }
@@ -200,4 +208,64 @@ enum TrangThaiDangKy {
   da_duyet
   tu_choi
   da_huy
+}
+
+model BuoiHocNhom {
+  id            Int       @id @default(autoincrement())
+  ma_mon_hoc    String    @db.VarChar(20)
+  id_hoc_ky     Int
+  ma_chu_tri    String?   @db.VarChar(20)
+  chu_de        String    @db.VarChar(150)
+  bat_dau       DateTime
+  ket_thuc      DateTime
+  link_meet     String    @db.VarChar(512)
+  phien_lich    Int       @default(1)
+  huy_luc       DateTime?
+  tao_luc       DateTime  @default(now())
+
+  MonHoc        MonHoc          @relation(fields: [ma_mon_hoc], references: [ma_mon_hoc], onDelete: Cascade)
+  HocKy         HocKy           @relation(fields: [id_hoc_ky], references: [id_hoc_ky], onDelete: Cascade)
+  ChuTri        SinhVien?       @relation(fields: [ma_chu_tri], references: [ma_sinh_vien], onDelete: SetNull)
+  QuanTam       QuanTamHocNhom[]
+  ThongBao      ThongBaoHocNhom[]
+
+  @@index([ma_mon_hoc, id_hoc_ky, bat_dau], map: "buoi_hoc_nhom_mon_ky_gio_idx")
+  @@map("buoi_hoc_nhom")
+}
+
+model QuanTamHocNhom {
+  id_buoi       Int
+  ma_sinh_vien  String @db.VarChar(20)
+
+  Buoi          BuoiHocNhom @relation(fields: [id_buoi], references: [id], onDelete: Cascade)
+  SinhVien      SinhVien    @relation(fields: [ma_sinh_vien], references: [ma_sinh_vien], onDelete: Cascade)
+
+  @@id([id_buoi, ma_sinh_vien])
+  @@index([ma_sinh_vien])
+  @@map("quan_tam_hoc_nhom")
+}
+
+enum LoaiThongBaoHocNhom {
+  mo_phong
+  doi_lich
+  huy
+}
+
+model ThongBaoHocNhom {
+  id            Int                 @id @default(autoincrement())
+  id_buoi       Int
+  ma_sinh_vien  String              @db.VarChar(20)
+  loai          LoaiThongBaoHocNhom
+  phien_lich    Int
+  chu_de        String              @db.VarChar(150)
+  bat_dau       DateTime
+  tao_luc       DateTime            @default(now())
+  doc_luc       DateTime?
+
+  Buoi          BuoiHocNhom @relation(fields: [id_buoi], references: [id], onDelete: Cascade)
+  SinhVien      SinhVien    @relation(fields: [ma_sinh_vien], references: [ma_sinh_vien], onDelete: Cascade)
+
+  @@unique([id_buoi, ma_sinh_vien, loai, phien_lich], map: "thong_bao_hoc_nhom_buoi_sv_loai_phien_key")
+  @@index([ma_sinh_vien, tao_luc])
+  @@map("thong_bao_hoc_nhom")
 }

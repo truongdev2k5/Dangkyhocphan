@@ -62,7 +62,7 @@ CREATE TABLE `giang_vien` (
     `ma_giang_vien` VARCHAR(20) NOT NULL,
     `ho_ten` VARCHAR(100) NOT NULL,
     `email` VARCHAR(100) NULL,
-    `so_dien_thoai` VARCHAR(20) NULL,S
+    `so_dien_thoai` VARCHAR(20) NULL,
     `khoa` VARCHAR(100) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updated_at` DATETIME(3) NOT NULL,

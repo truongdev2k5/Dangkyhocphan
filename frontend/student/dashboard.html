@@ -428,11 +428,15 @@
       }
     </style>
   <link rel="stylesheet" href="portal.css">
+  <link rel="stylesheet" href="study-groups.css">
   </head>
   <body>
     <nav class="navbar">
       <div class="navbar-brand"><b class="seal">UTT</b> Cổng sinh viên</div>
       <div class="navbar-menu">
+        <button class="btn study-notification-trigger" type="button" id="studyInboxOpen" hidden>
+          Thông báo <span id="studyUnread" hidden></span>
+        </button>
         <div class="user-menu-wrap">
           <button
             id="userMenuToggle"
@@ -671,12 +675,59 @@
 
     <script src="../shared/auth.js"></script>
     <script src="student.js"></script>
+    <script src="study-groups.js" defer></script>
   
 <dialog id="studentDialog" class="student-dialog" aria-labelledby="dialogTitle" aria-describedby="dialogText">
   <h2 id="dialogTitle"></h2><p id="dialogText"></p>
   <form method="dialog"><button class="btn btn-secondary" value="cancel" autofocus>Quay lại</button><button class="btn btn-primary" id="dialogAccept" value="ok"></button></form>
 </dialog>
 <div id="studentNotice" class="student-notice" hidden><span id="noticeText" role="status" aria-live="polite"></span><button type="button" aria-label="Đóng thông báo" onclick="this.parentElement.hidden=true">×</button></div>
+
+<dialog class="study-dialog" id="studyDialog" aria-labelledby="studyTitle">
+  <header class="study-header">
+    <div>
+      <h2 id="studyTitle">Học nhóm</h2>
+      <p id="studyCourse"></p>
+    </div>
+    <form method="dialog"><button class="study-button" type="submit">Đóng</button></form>
+  </header>
+  <div class="study-body">
+    <div class="study-toolbar">
+      <h3>Lịch học nhóm</h3>
+      <button type="button" class="study-button study-primary" id="studyNew">Đặt buổi học</button>
+    </div>
+    <form id="studyForm" class="study-form" hidden>
+      <h3 id="studyFormTitle" tabindex="-1">Đặt buổi học</h3>
+      <label>Chủ đề <input name="chu_de" maxlength="150" required placeholder="Ví dụ: Ôn JOIN và GROUP BY"></label>
+      <div class="study-times">
+        <label>Bắt đầu <input name="bat_dau" type="datetime-local" required></label>
+        <label>Kết thúc <input name="ket_thuc" type="datetime-local" required></label>
+      </div>
+      <p>Thời gian hiển thị theo giờ Việt Nam (GMT+7).</p>
+      <label>Link Google Meet <input name="link_meet" type="url" placeholder="https://meet.google.com/abc-defg-hij" required aria-describedby="studyLinkHint"></label>
+      <p id="studyLinkHint" hidden>Để trống để dùng link hiện tại.</p>
+      <p class="study-error" id="studyFormError" role="alert" hidden></p>
+      <div class="study-actions">
+        <button class="study-button" id="studyCloseForm" type="button">Quay lại</button>
+        <button class="study-button study-primary" type="submit">Lưu buổi học</button>
+      </div>
+    </form>
+    <p id="studyStatus" class="study-message" role="status"></p>
+    <p id="studyRoomNotice" class="study-room-notice" role="status"></p>
+    <div id="studyList" class="study-list"></div>
+  </div>
+</dialog>
+<dialog class="study-dialog study-inbox" id="studyInbox" aria-labelledby="studyInboxTitle">
+  <header class="study-header">
+    <h2 id="studyInboxTitle">Thông báo học nhóm</h2>
+    <form method="dialog"><button class="study-button" type="submit">Đóng</button></form>
+  </header>
+  <div class="study-body">
+    <button class="study-button" id="studyRead" type="button" hidden>Đánh dấu đã đọc</button>
+    <p id="studyInboxStatus" class="study-message" role="status"></p>
+    <ul id="studyInboxList" class="study-list"></ul>
+  </div>
+</dialog>
 </body>
 </html>
 
